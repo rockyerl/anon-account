@@ -1,0 +1,8 @@
+# Global owners
+* @sundawa/core-team
+
+# Security, Auth, and DB schema owners
+/src/lib/auth/ @sundawa/security-leads
+/src/db/ @sundawa/tech-leads
+/drizzle/ @sundawa/tech-leads
+/.github/workflows/ @sundawa/devops-leads
