@@ -39,30 +39,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. If accessing root / -> redirect to /dashboard if logged in, else /login
+  // 2. Allow prototype root / without forcing login redirect
   if (pathname === "/") {
-    if (sessionPayload) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.next();
   }
 
-  // 3. Protected /dashboard routes
-  if (pathname.startsWith("/dashboard")) {
-    if (!sessionPayload) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("from", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // Check specific path permissions
-    for (const [routePrefix, requiredPerm] of Object.entries(ROUTE_PERMISSIONS)) {
-      if (pathname.startsWith(routePrefix)) {
-        const isSuperAdmin = sessionPayload.roleCode === "SUPER_ADMIN";
-        const hasPerm = sessionPayload.permissions?.includes(requiredPerm);
-        if (!isSuperAdmin && !hasPerm) {
-          return NextResponse.redirect(new URL("/dashboard/forbidden", request.url));
-        }
+  // 3. Protected legacy user/role routes
+  for (const [routePrefix, requiredPerm] of Object.entries(ROUTE_PERMISSIONS)) {
+    if (pathname.startsWith(routePrefix)) {
+      if (!sessionPayload) {
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("from", pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+      const isSuperAdmin = sessionPayload.roleCode === "SUPER_ADMIN";
+      const hasPerm = sessionPayload.permissions?.includes(requiredPerm);
+      if (!isSuperAdmin && !hasPerm) {
+        return NextResponse.redirect(new URL("/dashboard/forbidden", request.url));
       }
     }
   }
