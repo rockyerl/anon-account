@@ -14,7 +14,6 @@ import {
   History,
   Layers,
   ChevronDown,
-  Info,
   RotateCcw,
   Shield,
   Fingerprint,
@@ -27,19 +26,12 @@ const ROLE_LABELS: Record<
   Role,
   { name: string; title: string; rank: string; badgeColor: string; avatarColor: string }
 > = {
-  pimpinan: {
-    name: "Pimpinan Demo",
-    title: "Komandan Kodiklat TNI",
-    rank: "Mayjen TNI",
-    badgeColor: "bg-amber-500/20 text-amber-700 border-amber-300",
-    avatarColor: "from-amber-500 to-amber-700",
-  },
-  reviewer: {
-    name: "Reviewer Demo",
-    title: "Perwira Penelaah / Asisten Operasi",
-    rank: "Kolonel Inf",
-    badgeColor: "bg-purple-500/20 text-purple-700 border-purple-300",
-    avatarColor: "from-purple-600 to-violet-900",
+  analis: {
+    name: "Analis Demo",
+    title: "Analis Intelijen Digital (Pencatat Kasus)",
+    rank: "Letkol Kav",
+    badgeColor: "bg-blue-500/20 text-blue-700 border-blue-300",
+    avatarColor: "from-blue-600 to-indigo-800",
   },
   petugas_verifikasi: {
     name: "Petugas Verifikasi Demo",
@@ -48,12 +40,19 @@ const ROLE_LABELS: Record<
     badgeColor: "bg-emerald-500/20 text-emerald-700 border-emerald-300",
     avatarColor: "from-emerald-600 to-teal-800",
   },
-  analis: {
-    name: "Analis Demo",
-    title: "Analis Intelijen Digital (Pencatat Kasus)",
-    rank: "Letkol Kav",
-    badgeColor: "bg-blue-500/20 text-blue-700 border-blue-300",
-    avatarColor: "from-blue-600 to-indigo-800",
+  reviewer: {
+    name: "Reviewer Demo",
+    title: "Perwira Penelaah / Asisten Operasi",
+    rank: "Kolonel Inf",
+    badgeColor: "bg-purple-500/20 text-purple-700 border-purple-300",
+    avatarColor: "from-purple-600 to-violet-900",
+  },
+  pimpinan: {
+    name: "Pimpinan Demo",
+    title: "Komandan Kodiklat TNI",
+    rank: "Mayjen TNI",
+    badgeColor: "bg-amber-500/20 text-amber-700 border-amber-300",
+    avatarColor: "from-amber-500 to-amber-700",
   },
   admin_demo: {
     name: "Admin Demo",
@@ -184,17 +183,6 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
           label: "Jejak Audit Forensik",
           icon: History,
           roles: ["admin_demo"],
-        },
-      ],
-    },
-    {
-      category: "DOKUMENTASI SKENARIO",
-      items: [
-        {
-          href: "/",
-          label: "Panduan Pitch 30M",
-          icon: Info,
-          roles: ["pimpinan", "analis", "reviewer", "admin_demo", "petugas_verifikasi"],
         },
       ],
     },

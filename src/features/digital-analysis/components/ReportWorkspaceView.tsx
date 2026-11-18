@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useDigitalAnalysis } from "../context";
 import { DigitalCase, Evidence, Report, VerificationRequest, Role } from "../types";
 import {
@@ -40,6 +41,7 @@ export function ReportWorkspaceView({
   evidenceList,
   verificationRequests,
 }: ReportWorkspaceViewProps) {
+  const router = useRouter();
   const { currentRole, currentUser, switchRole, actions } = useDigitalAnalysis();
 
   const reportRes = actions.getReport(caseItem.id);
@@ -162,8 +164,11 @@ export function ReportWorkspaceView({
       }
 
       setSuccessMessage(
-        "Draft laporan berhasil disimpan dan berkas bukti telah diajukan ke Petugas Verifikasi Lapangan (Mayor Cpm)! Silakan beralih ke peran Petugas Verifikasi untuk memvalidasi fakta."
+        "Laporan berhasil dikirim ke Petugas Verifikasi Lapangan (Mayor Cpm)! Mengalihkan kembali ke Ruang Kasus Digital..."
       );
+      setTimeout(() => {
+        router.push("/kasus");
+      }, 800);
       return;
     }
 
@@ -186,8 +191,11 @@ export function ReportWorkspaceView({
       setErrorMessage(res.message || res.error);
     } else {
       setSuccessMessage(
-        "Laporan berhasil diajukan ke Reviewer (Kolonel Inf) untuk penelaahan akhir! Status kasus kini telah diperbarui."
+        "Laporan berhasil diajukan ke Reviewer (Kolonel Inf)! Mengalihkan kembali ke Ruang Kasus Digital..."
       );
+      setTimeout(() => {
+        router.push("/kasus");
+      }, 800);
     }
   };
 

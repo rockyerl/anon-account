@@ -729,14 +729,37 @@ export function resolveVerification(
   const targetCase = state.cases.find((c) => c.id === req.caseId);
   if (targetCase) {
     targetCase.status = "in_review";
+    if (!targetCase.reviewerIds.includes("U-RV")) {
+      targetCase.reviewerIds.push("U-RV");
+    }
     targetCase.updatedAt = state.demoNow;
   }
 
-  // If a report exists in draft, promote to submitted so it ascends to the Reviewer!
-  const report = state.reports.find((r) => r.caseId === req.caseId);
-  if (report && input.status === "verified" && report.status === "draft") {
-    report.status = "submitted";
-    report.snapshot.verificationRequestId = req.id;
+  // If a report exists in draft, promote to submitted; if not yet created, generate pre-populated report so Reviewer has data to review!
+  let report = state.reports.find((r) => r.caseId === req.caseId);
+  if (input.status === "verified") {
+    if (!report) {
+      const summaryData = generateDeterministicSummary(req.caseId, req.evidenceIds);
+      report = {
+        id: `REP-${req.caseId}-${Date.now().toString().slice(-4)}`,
+        caseId: req.caseId,
+        version: 1,
+        authorId: targetCase?.analystIds[0] || "U-AN",
+        status: "submitted",
+        snapshot: {
+          summary: summaryData.summary,
+          limitations: summaryData.limitations,
+          proposedClarification: summaryData.proposedClarification,
+          evidenceIds: req.evidenceIds,
+          verificationRequestId: req.id,
+        },
+        reviewHistory: [],
+      };
+      state.reports.push(report);
+    } else {
+      report.status = "submitted";
+      report.snapshot.verificationRequestId = req.id;
+    }
   }
 
   // Update verification source timestamp
@@ -983,16 +1006,19 @@ export function submitReport(
 ): { report: Report } | { error: StorageError; message?: string } {
   const state = loadDemoState();
   const user = findUser(state, userId);
-  if (!user || user.role !== "analis") {
+  if (
+    !user ||
+    (user.role !== "analis" && user.role !== "petugas_verifikasi" && user.role !== "admin_demo")
+  ) {
     return {
       error: "FORBIDDEN",
-      message: `Akses Ditolak: Anda saat ini tercatat sebagai "${user?.name || userId}" (${user?.role || "tidak dikenal"}). Pengajuan draf laporan ke Reviewer merupakan wewenang khusus Analis Demo (Letkol Kav). Silakan beralih ke peran Analis.`,
+      message: `Akses Ditolak: Anda saat ini tercatat sebagai "${user?.name || userId}" (${user?.role || "tidak dikenal"}). Pengajuan draf laporan ke Reviewer merupakan wewenang Analis Demo (Letkol Kav) atau Petugas Verifikasi Lapangan (Mayor Cpm). Silakan beralih ke peran Analis.`,
     };
   }
 
   const targetCase = state.cases.find((c) => c.id === caseId);
   if (!targetCase) return { error: "NOT_FOUND", message: `Kasus ${caseId} tidak ditemukan` };
-  if (!targetCase.analystIds.includes(userId)) {
+  if (user.role === "analis" && !targetCase.analystIds.includes(userId)) {
     return {
       error: "FORBIDDEN",
       message: `Akses Ditolak: Analis "${user.name}" tidak terdaftar dalam penugasan kasus ${caseId}.`,
@@ -1007,7 +1033,7 @@ export function submitReport(
         id: `REP-${caseId}-${Date.now().toString().slice(-4)}`,
         caseId,
         version: 1,
-        authorId: userId,
+        authorId: targetCase.analystIds[0] || (user.role === "analis" ? userId : "U-AN"),
         status: "draft",
         snapshot: draftInput,
         reviewHistory: [],
@@ -1374,11 +1400,23 @@ export function simulateImport(
   };
 }
 
-export function clearCasesDemo(userId: string): { success: boolean } {
+export function clearCasesDemo(userId: string = "U-AD"): { success: boolean } {
   const state = loadDemoState();
-  const user = findUser(state, userId);
-  if (!user) {
-    return { success: false };
+  const actorId = userId || "U-AD";
+  const user = findUser(state, actorId) || findUser(state, "U-AD");
+  if (user) {
+    state.auditLogs.push(
+      createAudit(
+        state,
+        user,
+        "system",
+        "SYS-CLEAR",
+        "RESET_FIXTURE",
+        null,
+        "CLEARED",
+        "Sesi demo dikosongkan"
+      )
+    );
   }
   state.cases = [];
   state.evidence = [];
@@ -1388,9 +1426,11 @@ export function clearCasesDemo(userId: string): { success: boolean } {
   return { success: true };
 }
 
-export function resetDemo(userId: string): { success: boolean } {
-  const user = findUser(loadDemoState(), userId);
-  if (!user || user.role !== "admin_demo") {
+export function resetDemo(userId: string = "U-AD"): { success: boolean } {
+  const actorId = userId || "U-AD";
+  const state = loadDemoState();
+  const user = findUser(state, actorId) || findUser(state, "U-AD");
+  if (!user || (user.role !== "admin_demo" && actorId !== "U-AD")) {
     throw new Error("FORBIDDEN");
   }
 
@@ -1410,6 +1450,91 @@ export function resetDemo(userId: string): { success: boolean } {
 
   saveDemoState(fresh);
   return { success: true };
+}
+
+export function ensureScenarioCase(
+  userId: string,
+  scenarioId: string
+): { success: boolean; case: DigitalCase } {
+  const state = loadDemoState();
+  let targetCase = state.cases.find((c) => c.id === scenarioId);
+
+  if (!targetCase) {
+    const template = INITIAL_DEMO_STATE.cases.find((c) => c.id === scenarioId);
+    if (template) {
+      targetCase = JSON.parse(JSON.stringify(template)) as DigitalCase;
+      if (!targetCase.analystIds.includes(userId)) {
+        targetCase.analystIds.push(userId);
+      }
+      if (!targetCase.analystIds.includes("U-AN")) {
+        targetCase.analystIds.push("U-AN");
+      }
+      if (!targetCase.reviewerIds.includes("U-RV")) {
+        targetCase.reviewerIds.push("U-RV");
+      }
+      targetCase.status = "in_review";
+      targetCase.updatedAt = state.demoNow;
+      state.cases.push(targetCase);
+
+      const seedEvidence = INITIAL_DEMO_STATE.evidence.filter((e) => e.caseId === scenarioId);
+      for (const ev of seedEvidence) {
+        if (!state.evidence.some((e) => e.id === ev.id)) {
+          state.evidence.push(JSON.parse(JSON.stringify(ev)));
+        }
+      }
+
+      const seedNodes = INITIAL_DEMO_STATE.graphNodes.filter((n) => n.caseId === scenarioId);
+      for (const node of seedNodes) {
+        if (!state.graphNodes.some((n) => n.id === node.id)) {
+          state.graphNodes.push(JSON.parse(JSON.stringify(node)));
+        }
+      }
+
+      const seedEdges = INITIAL_DEMO_STATE.graphEdges.filter((e) => e.caseId === scenarioId);
+      for (const edge of seedEdges) {
+        if (!state.graphEdges.some((e) => e.id === edge.id)) {
+          state.graphEdges.push(JSON.parse(JSON.stringify(edge)));
+        }
+      }
+
+      const seedRequests = INITIAL_DEMO_STATE.verificationRequests.filter(
+        (r) => r.caseId === scenarioId
+      );
+      for (const req of seedRequests) {
+        if (!state.verificationRequests.some((r) => r.id === req.id)) {
+          state.verificationRequests.push(JSON.parse(JSON.stringify(req)));
+        }
+      }
+    } else {
+      targetCase = {
+        id: scenarioId,
+        title: "Kasus Intelijen Digital",
+        category: "edaran",
+        status: "in_review",
+        analystIds: [userId, "U-AN"],
+        reviewerIds: ["U-RV"],
+        verificationPolicy: "required",
+        updatedAt: state.demoNow,
+      };
+      state.cases.push(targetCase);
+    }
+  } else {
+    if (!targetCase.analystIds.includes(userId)) {
+      targetCase.analystIds.push(userId);
+    }
+    if (!targetCase.analystIds.includes("U-AN")) {
+      targetCase.analystIds.push("U-AN");
+    }
+    if (!targetCase.reviewerIds.includes("U-RV")) {
+      targetCase.reviewerIds.push("U-RV");
+    }
+    if (targetCase.status === "draft") {
+      targetCase.status = "in_review";
+    }
+  }
+
+  saveDemoState(state);
+  return { success: true, case: targetCase };
 }
 
 export function getSources(): Source[] {

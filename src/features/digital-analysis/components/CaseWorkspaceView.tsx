@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDigitalAnalysis } from "../context";
 import { AccessDenied } from "./AccessDenied";
 import { EvidenceTimeline } from "./EvidenceTimeline";
@@ -37,6 +38,8 @@ import {
   Fingerprint,
   Zap,
   Printer,
+  Lock,
+  FolderPlus,
 } from "lucide-react";
 
 export type CaseStep = "step1" | "step2" | "step3";
@@ -49,6 +52,7 @@ interface CaseWorkspaceViewProps {
 }
 
 export function CaseWorkspaceView({ caseId, defaultTab = "step1" }: CaseWorkspaceViewProps) {
+  const router = useRouter();
   const { currentRole, currentUser, switchRole, actions, demoActionsConfig } = useDigitalAnalysis();
   const [tab, setTab] = useState<CaseTab>(defaultTab);
 
@@ -97,6 +101,89 @@ export function CaseWorkspaceView({ caseId, defaultTab = "step1" }: CaseWorkspac
   // 1. Fetch case with authorization check
   const caseRes = actions.getCase(caseId);
   if ("error" in caseRes) {
+    if (caseRes.error === "NOT_FOUND") {
+      // Check if it is a known preset scenario that can be restored
+      if (["KAS-101", "KAS-102", "KAS-103"].includes(caseId)) {
+        return (
+          <div className="max-w-xl mx-auto my-12 p-8 bg-[#111A2E] border border-[#1E2E4A] rounded-3xl text-center space-y-5 shadow-2xl">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-[#F0BC79] flex items-center justify-center mx-auto">
+              <FolderPlus className="w-8 h-8" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-white">
+                Skenario Kasus {caseId} Belum Dimuat
+              </h2>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                Kasus ini belum terdaftar di sesi saat ini (mungkin Anda baru saja mengosongkan
+                sesi). Klik tombol di bawah untuk mengaktifkan skenario beserta 20 node graf dan
+                bukti scraping otomatis.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              <button
+                onClick={() => {
+                  actions.ensureScenarioCase(caseId);
+                }}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#F0BC79] hover:bg-[#e0ac69] text-[#151E36] font-bold text-xs shadow-md transition cursor-pointer"
+              >
+                Aktifkan Skenario {caseId} Sekarang
+              </button>
+              <Link
+                href="/kasus"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
+              >
+                Kembali ke Daftar Kasus
+              </Link>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <AccessDenied
+          title="Kasus Tidak Ditemukan (404 Not Found)"
+          message={`Kasus dengan ID ${caseId} tidak ditemukan dalam pangkalan data intelijen. Kasus mungkin telah dihapus atau Anda berada dalam Sesi Bersih.`}
+          backHref="/kasus"
+          backLabel="Kembali ke Daftar Kasus"
+        />
+      );
+    }
+
+    // FORBIDDEN error
+    if (currentUser.role === "analis") {
+      return (
+        <div className="max-w-xl mx-auto my-12 p-8 bg-[#111A2E] border border-amber-500/40 rounded-3xl text-center space-y-5 shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-[#F0BC79] flex items-center justify-center mx-auto">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-white">Kompartemen Tertutup ({caseId})</h2>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
+              Sesuai prinsip kompartemenisasi intelijen digital Kodiklat TNI, akun Anda (
+              <strong>{currentUser.name}</strong>) belum dimasukkan ke tim penugasan kasus ini. Anda
+              dapat mengambil alih kasus ini untuk memulai penyelidikan.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => {
+                actions.takeOverCase(caseId);
+              }}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#F0BC79] hover:bg-[#e0ac69] text-[#151E36] font-bold text-xs shadow-md transition cursor-pointer"
+            >
+              Ambil Alih Penugasan Kasus (Take Over)
+            </button>
+            <Link
+              href="/kasus"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
+            >
+              Kembali ke Daftar Kasus
+            </Link>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <AccessDenied
         title="Akses Ditolak (403 Forbidden)"
@@ -341,8 +428,13 @@ export function CaseWorkspaceView({ caseId, defaultTab = "step1" }: CaseWorkspac
     if ("error" in res) {
       setErrorMessage(res.message || res.error);
     } else {
-      setSuccessMessage("Permintaan verifikasi berhasil diajukan ke Petugas Verifikasi.");
+      setSuccessMessage(
+        "Permintaan verifikasi berhasil diajukan ke Petugas Verifikasi! Mengalihkan ke Ruang Kasus Digital..."
+      );
       setRequestVerificationModalOpen(false);
+      setTimeout(() => {
+        router.push("/kasus");
+      }, 800);
     }
   };
 

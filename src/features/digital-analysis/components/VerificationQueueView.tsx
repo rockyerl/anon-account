@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Sparkles,
   AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 import { EvidenceViewerModal } from "./EvidenceViewerModal";
 
@@ -316,9 +317,21 @@ export function VerificationQueueView({ selectedRequestId }: { selectedRequestId
                     )}
 
                     {successMessage && (
-                      <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-xs flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                        <span>{successMessage}</span>
+                      <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                          <span className="font-semibold">{successMessage}</span>
+                        </div>
+                        {statusInput === "verified" && (
+                          <button
+                            type="button"
+                            onClick={() => switchRole("reviewer")}
+                            className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg font-bold text-xs shrink-0 flex items-center gap-1.5 transition-colors self-start sm:self-auto cursor-pointer"
+                          >
+                            <span>Beralih ke Reviewer</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     )}
 

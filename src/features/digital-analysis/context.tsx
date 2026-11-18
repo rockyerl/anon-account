@@ -41,6 +41,7 @@ import {
   generateDeterministicSummary,
   simulateFastVerification,
   takeOverCase,
+  ensureScenarioCase,
   RecordEvidenceInput,
 } from "./adapter";
 import { DEMO_ACTIONS_CONFIG, INITIAL_DEMO_STATE } from "./fixtures";
@@ -146,6 +147,7 @@ interface DigitalAnalysisContextValue {
       caseId: string
     ) => { request: VerificationRequest } | { error: string; message?: string };
     takeOverCase: (caseId: string) => { case: DigitalCase } | { error: string; message?: string };
+    ensureScenarioCase: (scenarioId: string) => { success: boolean; case: DigitalCase };
   };
   demoActionsConfig: typeof DEMO_ACTIONS_CONFIG;
 }
@@ -168,7 +170,7 @@ function getServerDemoStateSnapshot(): DemoState {
   return INITIAL_DEMO_STATE;
 }
 
-let cachedRole: Role = "pimpinan";
+let cachedRole: Role = "analis";
 let lastRoleRaw: string | null = null;
 
 function subscribeRole(callback: () => void) {
@@ -182,20 +184,20 @@ function subscribeRole(callback: () => void) {
 }
 
 function getRoleSnapshot(): Role {
-  if (typeof window === "undefined") return "pimpinan";
+  if (typeof window === "undefined") return "analis";
   const raw = localStorage.getItem(ACTIVE_ROLE_KEY);
   if (raw === lastRoleRaw) return cachedRole;
   lastRoleRaw = raw;
-  if (raw && ["pimpinan", "analis", "petugas_verifikasi", "reviewer", "admin_demo"].includes(raw)) {
+  if (raw && ["analis", "petugas_verifikasi", "reviewer", "pimpinan", "admin_demo"].includes(raw)) {
     cachedRole = raw as Role;
   } else {
-    cachedRole = "pimpinan";
+    cachedRole = "analis";
   }
   return cachedRole;
 }
 
 function getServerRoleSnapshot(): Role {
-  return "pimpinan";
+  return "analis";
 }
 
 function subscribeReady() {
@@ -307,8 +309,8 @@ export function DigitalAnalysisProvider({ children }: { children: React.ReactNod
       evidence?: Evidence;
       reason?: string;
     }) => simulateImport(currentUser.id, batch),
-    clearCasesDemo: () => clearCasesDemo(currentUser.id),
-    resetDemo: () => resetDemo(currentUser.id),
+    clearCasesDemo: () => clearCasesDemo("U-AD"),
+    resetDemo: () => resetDemo("U-AD"),
     getSources: () => getSources(),
     getAuditLogs: () => getAuditLogs(),
     getAggregateMetrics: () => getAggregateMetrics(),
@@ -316,6 +318,7 @@ export function DigitalAnalysisProvider({ children }: { children: React.ReactNod
       generateDeterministicSummary(caseId, evidenceIds),
     simulateFastVerification: (caseId: string) => simulateFastVerification(currentUser.id, caseId),
     takeOverCase: (caseId: string) => takeOverCase(currentUser.id, caseId),
+    ensureScenarioCase: (scenarioId: string) => ensureScenarioCase(currentUser.id, scenarioId),
   };
 
   return (

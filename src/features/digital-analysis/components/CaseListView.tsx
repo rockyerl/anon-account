@@ -185,6 +185,16 @@ export function CaseListView() {
           setIsScrapingSimulation(false);
           setErrorMessage(res.message || res.error);
         } else {
+          // Auto-seed initial scraped evidence for this custom case
+          actions.recordEvidence(res.case.id, {
+            sourceId: "SRC-PUB",
+            kind: "public_post",
+            sourceRef: `https://x.example/netizen_radar/status/${Date.now().toString().slice(-6)}`,
+            title: `[X] @netizen_radar: Pantauan Cuitan Terkait "${finalTitle}"`,
+            excerpt: `Hasil penelusuran kata kunci intelijen digital mendeteksi percakapan intensif di ranah publik terkait ${finalTitle}.`,
+            occurredAt: new Date().toISOString(),
+          });
+          actions.startReview(res.case.id);
           setCreateModalOpen(false);
           setIsScrapingSimulation(false);
           router.push(`/kasus/${res.case.id}`);
@@ -225,6 +235,9 @@ export function CaseListView() {
     }, 1800);
 
     setTimeout(() => {
+      // Ensure scenario case exists in state.cases with evidence & nodes populated!
+      actions.ensureScenarioCase(preset.id);
+
       // If KAS-103 is draft with 0 evidence, ensure it is primed with its scraped evidence & start review
       if (preset.id === "KAS-103") {
         const existingEv = actions.listEvidence("KAS-103");
